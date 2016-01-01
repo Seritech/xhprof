@@ -82,7 +82,7 @@ class Db_Pdo extends Db_Abstract
     
     public static function unixTimestamp($field)
     {
-        return 'UNIX_TIMESTAMP('.$field.')';
+        return 'extract(epoch FROM ' . $field . ')';
     }
     
     public static function dateSub($days)

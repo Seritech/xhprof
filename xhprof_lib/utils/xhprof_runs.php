@@ -151,10 +151,10 @@ CREATE TABLE `details` (
   {
       if (isset($stats['select']))
       {
-        $query = "SELECT {$stats['select']} FROM `details` ";  
+        $query = "SELECT {$stats['select']} FROM details ";
       }else
       {
-        $query = "SELECT * FROM `details` ";
+        $query = "SELECT * FROM details ";
       }
       
       $skippers = array("limit", "order by", "group by", "where", "select");
@@ -181,7 +181,7 @@ CREATE TABLE `details` (
           }
           
           $value = $this->db->escape($value);
-          $query .= " `$column` = '$value' ";
+          $query .= " $column = '$value' ";
       }
       
       if (isset($stats['where']))
@@ -199,12 +199,12 @@ CREATE TABLE `details` (
       
       if (isset($stats['group by']))
       {
-          $query .= " GROUP BY `{$stats['group by']}` ";
+          $query .= " GROUP BY {$stats['group by']} ";
       }
       
       if (isset($stats['order by']))
       {
-          $query .= " ORDER BY `{$stats['order by']}` DESC";
+          $query .= " ORDER BY {$stats['order by']} DESC";
       }
       
       if (isset($stats['limit']))
@@ -225,9 +225,9 @@ CREATE TABLE `details` (
   public function getHardHit($criteria)
   {
     //call thing to get runs
-    $criteria['select'] = "distinct(`{$criteria['type']}`), count(`{$criteria['type']}`) AS `count` , sum(`wt`) as total_wall, avg(`wt`) as avg_wall";
+    $criteria['select'] = "distinct('{$criteria['type']}'), count('{$criteria['type']}') AS count , sum(wt) as total_wall, avg(wt) as avg_wall";
     unset($criteria['type']);
-    $criteria['where'] = $this->db->dateSub($criteria['days']) . " <= `timestamp`";
+    $criteria['where'] = $this->db->dateSub($criteria['days']) . " <= timestamp";
     unset($criteria['days']);
     $criteria['group by'] = "url";
     $criteria['order by'] = "count";
@@ -239,7 +239,7 @@ CREATE TABLE `details` (
   public function getDistinct($data)
   {
 	$sql['column'] = $this->db->escape($data['column']);
-	$query = "SELECT DISTINCT(`{$sql['column']}`) FROM `details`";
+	$query = "SELECT DISTINCT({$sql['column']}) FROM details";
 	$rs = $this->db->query($query);
 	return $rs;
   }
@@ -261,7 +261,7 @@ CREATE TABLE `details` (
   public function get_run($run_id, $type, &$run_desc) 
   {
     $run_id = $this->db->escape($run_id);
-    $query = "SELECT * FROM `details` WHERE `id` = '$run_id'";
+    $query = "SELECT * FROM details WHERE id = '$run_id'";
     $resultSet = $this->db->query($query);
     $data = $this->db->getNextAssoc($resultSet);
 
@@ -272,6 +272,9 @@ CREATE TABLE `details` (
 
     //The Performance data is compressed lightly to avoid max row length
 	if (!isset($GLOBALS['_xhprof']['serializer']) || strtolower($GLOBALS['_xhprof']['serializer'] == 'php')) {
+		if (is_resource($data['perfdata'])) {
+			$data['perfdata'] = stream_get_contents($data['perfdata']);
+		}
 		$contents = unserialize(gzuncompress($data['perfdata']));
 	} else {
 		$contents = json_decode(gzuncompress($data['perfdata']), true);
@@ -305,7 +308,7 @@ CREATE TABLE `details` (
   */
   public function getUrlStats($data)
   {
-      $data['select'] = '`id`, '.$this->db->unixTimestamp('timestamp').' as `timestamp`, `pmu`, `wt`, `cpu`';
+      $data['select'] = 'id, '.$this->db->unixTimestamp('timestamp').' as timestamp, pmu, wt, cpu';
       $rs = $this->getRuns($data);
       return $rs;
   }
@@ -324,14 +327,15 @@ CREATE TABLE `details` (
       $c_url = $this->db->escape($c_url);
       //Runs same URL
       //  count, avg/min/max for wt, cpu, pmu
-      $query = "SELECT count(`id`), avg(`wt`), min(`wt`), max(`wt`),  avg(`cpu`), min(`cpu`), max(`cpu`), avg(`pmu`), min(`pmu`), max(`pmu`) FROM `details` WHERE `url` = '$url'";
+      $query = "SELECT count(id) AS cnt_id, avg(wt) AS avg_wt, min(wt) AS min_wt, max(wt) AS max_wt,  avg(cpu) AS avg_cpu, min(cpu) AS min_cpu, max(cpu) AS max_cpu, avg(pmu) AS avg_pmu, min(pmu) AS min_pmu, max(pmu) AS max_pmu FROM details WHERE url = '$url'";
       $rs = $this->db->query($query);
       $row = $this->db->getNextAssoc($rs);
       $row['url'] = $url;
       
-      $row['95(`wt`)'] = $this->calculatePercentile(array('count' => $row['count(`id`)'], 'column' => 'wt', 'type' => 'url', 'url' => $url));
-      $row['95(`cpu`)'] = $this->calculatePercentile(array('count' => $row['count(`id`)'], 'column' => 'cpu', 'type' => 'url', 'url' => $url));
-      $row['95(`pmu`)'] = $this->calculatePercentile(array('count' => $row['count(`id`)'], 'column' => 'pmu', 'type' => 'url', 'url' => $url));
+
+      $row['95(wt)'] = $this->calculatePercentile(array('count' => $row['cnt_id'], 'column' => 'wt', 'type' => 'url', 'url' => $url));
+      $row['95(cpu)'] = $this->calculatePercentile(array('count' => $row['cnt_id'], 'column' => 'cpu', 'type' => 'url', 'url' => $url));
+      $row['95(pmu)'] = $this->calculatePercentile(array('count' => $row['cnt_id'], 'column' => 'pmu', 'type' => 'url', 'url' => $url));
 
       global $comparative;
       $comparative['url'] = $row;
@@ -339,13 +343,13 @@ CREATE TABLE `details` (
       
       //Runs same c_url
       //  count, avg/min/max for wt, cpu, pmu
-      $query = "SELECT count(`id`), avg(`wt`), min(`wt`), max(`wt`),  avg(`cpu`), min(`cpu`), max(`cpu`), avg(`pmu`), min(`pmu`), max(`pmu`) FROM `details` WHERE `c_url` = '$c_url'";
+      $query = "SELECT count(id) AS cnt_id, avg(wt) AS avg_wt, min(wt) AS min_wt, max(wt) AS max_wt, avg(cpu) AS avg_cpu, min(cpu) AS min_cpu, max(cpu) AS max_cpu, avg(pmu) AS avg_pmu, min(pmu) AS min_pmu, max(pmu) AS max_pmu FROM details WHERE c_url = '$c_url'";
       $rs = $this->db->query($query);
       $row = $this->db->getNextAssoc($rs);
       $row['url'] = $c_url;
-      $row['95(`wt`)'] = $this->calculatePercentile(array('count' => $row['count(`id`)'], 'column' => 'wt', 'type' => 'c_url', 'url' => $c_url));
-      $row['95(`cpu`)'] = $this->calculatePercentile(array('count' => $row['count(`id`)'], 'column' => 'cpu', 'type' => 'c_url', 'url' => $c_url));
-      $row['95(`pmu`)'] = $this->calculatePercentile(array('count' => $row['count(`id`)'], 'column' => 'pmu', 'type' => 'c_url', 'url' => $c_url));
+      $row['95(wt)'] = $this->calculatePercentile(array('count' => $row['cnt_id'], 'column' => 'wt', 'type' => 'c_url', 'url' => $c_url));
+      $row['95(cpu)'] = $this->calculatePercentile(array('count' => $row['cnt_id'], 'column' => 'cpu', 'type' => 'c_url', 'url' => $c_url));
+      $row['95(pmu)'] = $this->calculatePercentile(array('count' => $row['cnt_id'], 'column' => 'pmu', 'type' => 'c_url', 'url' => $c_url));
 
       $comparative['c_url'] = $row;
       unset($row);
@@ -355,7 +359,7 @@ CREATE TABLE `details` (
   protected function calculatePercentile($details)
   {
                   $limit = (int) ($details['count'] / 20);
-                  $query = "SELECT `{$details['column']}` as `value` FROM `details` WHERE `{$details['type']}` = '{$details['url']}' ORDER BY `{$details['column']}` DESC LIMIT $limit, 1";
+                  $query = "SELECT {$details['column']} as value FROM details WHERE {$details['type']} = '{$details['url']}' ORDER BY {$details['column']} DESC LIMIT 1 OFFSET $limit";
                   $rs = $this->db->query($query);
                   $row = $this->db->getNextAssoc($rs);
                   return $row['value'];
@@ -452,9 +456,9 @@ CREATE TABLE `details` (
         $sql['timestamp'] = $this->db->escape($_SERVER['REQUEST_TIME']);
 	$sql['server_id'] = $this->db->escape($_xhprof['servername']);
         $sql['aggregateCalls_include'] = getenv('xhprof_aggregateCalls_include') ? getenv('xhprof_aggregateCalls_include') : '';
-        
-        $query = "INSERT INTO `details` (`id`, `url`, `c_url`, `timestamp`, `server name`, `perfdata`, `type`, `cookie`, `post`, `get`, `pmu`, `wt`, `cpu`, `server_id`, `aggregateCalls_include`) VALUES('$run_id', '{$sql['url']}', '{$sql['c_url']}', FROM_UNIXTIME('{$sql['timestamp']}'), '{$sql['servername']}', '{$sql['data']}', '{$sql['type']}', '{$sql['cookie']}', '{$sql['post']}', '{$sql['get']}', '{$sql['pmu']}', '{$sql['wt']}', '{$sql['cpu']}', '{$sql['server_id']}', '{$sql['aggregateCalls_include']}')";
-        
+
+        $query = "INSERT INTO details (id, url, c_url, timestamp, 'server_name', perfdata, type, cookie, post, get, pmu, wt, cpu, server_id, aggregateCalls_include) VALUES('$run_id', '{$sql['url']}', '{$sql['c_url']}', FROM_UNIXTIME('{$sql['timestamp']}'), '{$sql['servername']}', '{$sql['data']}', '{$sql['type']}', '{$sql['cookie']}', '{$sql['post']}', '{$sql['get']}', '{$sql['pmu']}', '{$sql['wt']}', '{$sql['cpu']}', '{$sql['server_id']}', '{$sql['aggregateCalls_include']}')";
+
         $this->db->query($query);
         if ($this->db->affectedRows($this->db->linkID) == 1)
         {
