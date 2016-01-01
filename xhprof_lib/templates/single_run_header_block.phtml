@@ -13,9 +13,21 @@
         }
 		
 		if (!isset($GLOBALS['_xhprof']['serializer']) || strtolower($GLOBALS['_xhprof']['serializer'] == 'php')) {
-			$cookieArr =  unserialize($xhprof_runs_impl->run_details['cookie']);
-			$getArr =  unserialize($xhprof_runs_impl->run_details['get']);
-			$postArr =  unserialize($xhprof_runs_impl->run_details['post']);
+            $cookie = $xhprof_runs_impl->run_details['cookie'];
+            if (is_resource($cookie)) {
+                $cookie = stream_get_contents($cookie);
+            }
+			$cookieArr =  unserialize($cookie);
+            $get = $xhprof_runs_impl->run_details['get'];
+            if (is_resource($get)) {
+                $get = stream_get_contents($get);
+            }
+			$getArr =  unserialize($get);
+            $post = $xhprof_runs_impl->run_details['post'];
+            if (is_resource($post)) {
+                $post = stream_get_contents($post);
+            }
+			$postArr =  unserialize($post);
 		} else {
 			$cookieArr =  json_decode($xhprof_runs_impl->run_details['cookie'], true);
 			$getArr =  json_decode($xhprof_runs_impl->run_details['get'], true);
